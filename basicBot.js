@@ -9,7 +9,7 @@
 
     /*window.onerror = function() {
         var room = JSON.parse(localStorage.getItem("basicBotRoom"));
-        window.location = 'https://plug.dj' + room.name;
+        window.location = 'https://www.dubtrack.fm' + room.name;
     };*/
 
     API.getWaitListPosition = function(id){
@@ -647,61 +647,7 @@
                     clearTimeout(basicBot.roomUtilities.booth.lockTimer);
                 }
             },
-            afkCheck: function () {
-                if (!basicBot.status || !basicBot.settings.afkRemoval) return void (0);
-                var rank = basicBot.roomUtilities.rankToNumber(basicBot.settings.afkRankCheck);
-                var djlist = API.getWaitList();
-                var lastPos = Math.min(djlist.length, basicBot.settings.afkpositionCheck);
-                if (lastPos - 1 > djlist.length) return void (0);
-                for (var i = 0; i < lastPos; i++) {
-                    if (typeof djlist[i] !== 'undefined') {
-                        var id = djlist[i].id;
-                        var user = basicBot.userUtilities.lookupUser(id);
-                        if (typeof user !== 'boolean') {
-                            var plugUser = basicBot.userUtilities.getUser(user);
-                            if (rank !== null && basicBot.userUtilities.getPermission(plugUser) <= rank) {
-                                var name = plugUser.username;
-                                var lastActive = basicBot.userUtilities.getLastActivity(user);
-                                var inactivity = Date.now() - lastActive;
-                                var time = basicBot.roomUtilities.msToStr(inactivity);
-                                var warncount = user.afkWarningCount;
-                                if (inactivity > basicBot.settings.maximumAfk * 60 * 1000) {
-                                    if (warncount === 0) {
-                                        API.sendChat(subChat(basicBot.chat.warning1, {name: name, time: time}));
-                                        user.afkWarningCount = 3;
-                                        user.afkCountdown = setTimeout(function (userToChange) {
-                                            userToChange.afkWarningCount = 1;
-                                        }, 90 * 1000, user);
-                                    }
-                                    else if (warncount === 1) {
-                                        API.sendChat(subChat(basicBot.chat.warning2, {name: name}));
-                                        user.afkWarningCount = 3;
-                                        user.afkCountdown = setTimeout(function (userToChange) {
-                                            userToChange.afkWarningCount = 2;
-                                        }, 30 * 1000, user);
-                                    }
-                                    else if (warncount === 2) {
-                                        var pos = API.getWaitListPosition(id);
-                                        if (pos !== -1) {
-                                            pos++;
-                                            basicBot.room.afkList.push([id, Date.now(), pos]);
-                                            user.lastDC = {
-
-                                                time: null,
-                                                position: null,
-                                                songCount: 0
-                                            };
-                                            API.moderateRemoveDJ(id);
-                                            API.sendChat(subChat(basicBot.chat.afkremove, {name: name, time: time, position: pos, maximumafk: basicBot.settings.maximumAfk}));
-                                        }
-                                        user.afkWarningCount = 0;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
+            
             smartSkip: function (reason) {
                 var dj = API.getDJ();
                 var id = dj.id;
@@ -1573,77 +1519,7 @@
                 }
             },
 
-            afkremovalCommand: {
-                command: 'afkremoval',
-                rank: 'mod',
-                type: 'exact',
-                functionality: function (chat, cmd) {
-                    if (this.type === 'exact' && chat.message.length !== cmd.length) return void (0);
-                    if (!basicBot.commands.executable(this.rank, chat)) return void (0);
-                    else {
-                        if (basicBot.settings.afkRemoval) {
-                            basicBot.settings.afkRemoval = !basicBot.settings.afkRemoval;
-                            clearInterval(basicBot.room.afkInterval);
-                            API.sendChat(subChat(basicBot.chat.toggleoff, {name: chat.un, 'function': basicBot.chat.afkremoval}));
-                        }
-                        else {
-                            basicBot.settings.afkRemoval = !basicBot.settings.afkRemoval;
-                            basicBot.room.afkInterval = setInterval(function () {
-                                basicBot.roomUtilities.afkCheck()
-                            }, 2 * 1000);
-                            API.sendChat(subChat(basicBot.chat.toggleon, {name: chat.un, 'function': basicBot.chat.afkremoval}));
-                        }
-                    }
-                }
-            },
-
-            afkresetCommand: {
-                command: 'afkreset',
-                rank: 'bouncer',
-                type: 'startsWith',
-                functionality: function (chat, cmd) {
-                    if (this.type === 'exact' && chat.message.length !== cmd.length) return void (0);
-                    if (!basicBot.commands.executable(this.rank, chat)) return void (0);
-                    else {
-                        var msg = chat.message;
-                        if (msg.length === cmd.length) return API.sendChat(subChat(basicBot.chat.nouserspecified, {name: chat.un}));
-                        var name = msg.substring(cmd.length + 2);
-                        var user = basicBot.userUtilities.lookupUserName(name);
-                        if (typeof user === 'boolean') return API.sendChat(subChat(basicBot.chat.invaliduserspecified, {name: chat.un}));
-                        basicBot.userUtilities.setLastActivity(user);
-                        API.sendChat(subChat(basicBot.chat.afkstatusreset, {name: chat.un, username: name}));
-                    }
-                }
-            },
-
-            afktimeCommand: {
-                command: 'afktime',
-                rank: 'bouncer',
-                type: 'startsWith',
-                functionality: function (chat, cmd) {
-                    if (this.type === 'exact' && chat.message.length !== cmd.length) return void (0);
-                    if (!basicBot.commands.executable(this.rank, chat)) return void (0);
-                    else {
-                        var msg = chat.message;
-                        if (msg.length === cmd.length) return API.sendChat(subChat(basicBot.chat.nouserspecified, {name: chat.un}));
-                        var name = msg.substring(cmd.length + 2);
-                        var user = basicBot.userUtilities.lookupUserName(name);
-                        if (typeof user === 'boolean') return API.sendChat(subChat(basicBot.chat.invaliduserspecified, {name: chat.un}));
-                        var lastActive = basicBot.userUtilities.getLastActivity(user);
-                        var inactivity = Date.now() - lastActive;
-                        var time = basicBot.roomUtilities.msToStr(inactivity);
-
-                        var launchT = basicBot.room.roomstats.launchTime;
-                        var durationOnline = Date.now() - launchT;
-
-                        if (inactivity == durationOnline){
-                            API.sendChat(subChat(basicBot.chat.inactivelonger, {botname: basicBot.settings.botName, name: chat.un, username: name}));
-                        } else {
-                        API.sendChat(subChat(basicBot.chat.inactivefor, {name: chat.un, username: name, time: time}));
-                        }
-                    }
-                }
-            },
+            
 
             autodisableCommand: {
                 command: 'autodisable',
